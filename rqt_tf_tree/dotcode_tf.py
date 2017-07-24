@@ -32,8 +32,9 @@
 
 from __future__ import with_statement, print_function
 
+from datetime import datetime
+
 import time
-import rospy
 import yaml
 
 
@@ -56,7 +57,7 @@ class RosTfTreeDotcodeGenerator(object):
     def generate_dotcode(self,
                          dotcode_factory,
                          tf2_frame_srv,
-                         timer=rospy.Time,
+                         timer=datetime,
                          yaml_parser=yaml,
                          rank='same',   # None, same, min, max, source, sink
                          ranksep=0.2,   # vertical distance between layers
@@ -94,7 +95,7 @@ class RosTfTreeDotcodeGenerator(object):
 
             yaml_data = tf2_frame_srv().frame_yaml
             data = yaml_parser.load(yaml_data)
-            self.graph = self.generate(data, timer.now().to_sec())
+            self.graph = self.generate(data, timer.now())
             self.dotcode = self.dotcode_factory.create_dot(self.graph)
 
         return self.dotcode

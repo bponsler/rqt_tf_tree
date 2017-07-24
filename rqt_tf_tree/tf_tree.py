@@ -32,13 +32,14 @@
 
 from __future__ import division
 import os
+import time
 
+from ament_index_python import get_package_prefix
 
-import rospy
-import rospkg
+import rclpy
 
 from tf2_msgs.srv import FrameGraph
-import tf2_ros
+#import tf2_ros  # TODO: the tf2_ros module does not exist yet
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import QFile, QIODevice, QObject, Qt, Signal
@@ -72,14 +73,16 @@ class RosTfTree(QObject):
         # self.dotcode_factory = PygraphvizFactory()
         # generator builds rosgraph
         self.dotcode_generator = RosTfTreeDotcodeGenerator()
-        self.tf2_buffer_ = tf2_ros.Buffer()
-        self.tf2_listener_ = tf2_ros.TransformListener(self.tf2_buffer_)
+
+        # TODO: the tf2_ros module does not exist yet
+        #self.tf2_buffer_ = tf2_ros.Buffer()
+        #self.tf2_listener_ = tf2_ros.TransformListener(self.tf2_buffer_)
 
         # dot_to_qt transforms into Qt elements using dot layout
         self.dot_to_qt = DotToQtGenerator()
 
-        rp = rospkg.RosPack()
-        ui_file = os.path.join(rp.get_path('rqt_tf_tree'), 'resource', 'RosTfTree.ui')
+        pkg = 'rqt_tf_tree'
+        ui_file = os.path.join(get_package_prefix(pkg), 'share', pkg, 'resource', 'RosTfTree.ui')
         loadUi(ui_file, self._widget, {'InteractiveGraphicsView': InteractiveGraphicsView})
         self._widget.setObjectName('RosTfTreeUi')
         if context.serial_number() > 1:
@@ -140,11 +143,27 @@ class RosTfTree(QObject):
     def _generate_dotcode(self):
         force_refresh = self._force_refresh
         self._force_refresh = False
-        rospy.wait_for_service('~tf2_frames')
-        tf2_frame_srv = rospy.ServiceProxy('~tf2_frames', FrameGraph)
+        tf2_frame_srv = self.__get_tf2_frame_service
         return self.dotcode_generator.generate_dotcode(dotcode_factory=self.dotcode_factory,
                                                        tf2_frame_srv=tf2_frame_srv,
                                                        force_refresh=force_refresh)
+
+    def __get_tf2_frame_service(self):
+        node = rclpy.create_node("tf2_frames_client")
+        client = node.create_client(FrameGraph, "tf2_frames")
+        time.sleep(1)  # TODO: remove once wait_for_service is implemented
+
+        # Call the serviec
+        req = FrameGraph.Request()
+        client.call(req)
+        #client.wait_for_future()  # TODO: is this needed?
+
+        print(dir(client))  # TODO:
+        print(client.response)  # TODO:
+        
+        node.destroy_node()
+
+        return client.response
 
     def _update_graph_view(self, dotcode):
         if dotcode == self._current_dotcode:
